@@ -1,4 +1,4 @@
-package ru.sovcombank.ecies;
+package ecies.common;
 
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
@@ -10,10 +10,9 @@ import javax.crypto.NoSuchPaddingException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 
-
 public class AESGCMBlockCipher extends BufferedBlockCipher {
 
-    private GCMBlockCipher internalCipher;
+    private final GCMBlockCipher internalCipher;
 
 
     public AESGCMBlockCipher()

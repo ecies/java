@@ -1,34 +1,34 @@
-package ru.sovcombank.ecies;
+package ecies;
 
+import ecies.common.AESGCMBlockCipher;
+import ecies.common.ECKeyPair;
 import lombok.SneakyThrows;
+import lombok.experimental.UtilityClass;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.HKDFParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.interfaces.ECPrivateKey;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
-import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.util.encoders.Hex;
 
 import javax.crypto.NoSuchPaddingException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.ECPoint;
 import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
-import java.util.Collections;
 
-public class EciesImpl implements Ecies {
+@UtilityClass
+public class Ecies {
 
     private static final String CURVE_NAME = "secp256k1";
     private static final int UNCOMPRESSED_PUBLIC_KEY_SIZE = 65;
@@ -36,33 +36,33 @@ public class EciesImpl implements Ecies {
     private static final int AES_TAG_LENGTH = 16;
     private static final int AES_IV_PLUS_TAG_LENGTH = AES_IV_LENGTH + AES_TAG_LENGTH;
     private static final int SECRET_KEY_LENGTH = 32;
-    private final SecureRandom random = new SecureRandom();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @SneakyThrows
-    public ECKeyPair generateEphemeralKey() {
+    public static ECKeyPair generateEcKeyPair() {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
         KeyPairGenerator g = KeyPairGenerator.getInstance("EC", new BouncyCastleProvider());
-        g.initialize(ecSpec, random);
+        g.initialize(ecSpec, SECURE_RANDOM);
         KeyPair keyPair = g.generateKeyPair();
         return new ECKeyPair((ECPublicKey) keyPair.getPublic(), (ECPrivateKey) keyPair.getPrivate());
     }
 
     @SneakyThrows
-    public String hexEncrypt(String plaintext, String peerPublicKey) {
-        byte[] publicKey = Hex.decode(peerPublicKey);
-        byte[] encrypt = encrypt(plaintext, publicKey);
+    public static String encrypt(String publicKeyHex, String message) {
+        byte[] publicKey = Hex.decode(publicKeyHex);
+        byte[] encrypt = encrypt(publicKey, message.getBytes(StandardCharsets.UTF_8));
         return Hex.toHexString(encrypt);
     }
 
     @SneakyThrows
-    public String hexDecrypt(String ciphertext, String ownPrivateKey) {
-        byte[] privateKey = Hex.decode(ownPrivateKey);
+    public static String decrypt(String privateKeyHex, String ciphertext) {
+        byte[] privateKey = Hex.decode(privateKeyHex);
         byte[] cipherBytes = Hex.decode(ciphertext);
-        return decrypt(cipherBytes, privateKey);
+        return new String(decrypt(privateKey, cipherBytes), StandardCharsets.UTF_8);
     }
 
     @SneakyThrows
-    public byte[] encrypt(String plaintext, byte[] publicKeyBytes) {
+    public static byte[] encrypt(byte[] publicKeyBytes, byte[] message) {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
         KeyPair pair = generateEphemeralKey(ecSpec);
 
@@ -70,7 +70,7 @@ public class EciesImpl implements Ecies {
         ECPublicKey ephemeralPubKey = (ECPublicKey) pair.getPublic();
 
         //generate receiver PK
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", new BouncyCastleProvider());
+        KeyFactory keyFactory = getKeyFactory();
         org.bouncycastle.jce.spec.ECNamedCurveSpec curvedParams = new ECNamedCurveSpec(CURVE_NAME, ecSpec.getCurve(), ecSpec.getG(), ecSpec.getN());
         ECPublicKey publicKey = getEcPublicKey(curvedParams, publicKeyBytes, keyFactory);
 
@@ -80,17 +80,22 @@ public class EciesImpl implements Ecies {
         byte[] aesKey = hkdf(uncompressed, multiply);
 
         // AES encryption
-        return aesEncrypt(plaintext, ephemeralPubKey, aesKey);
+        return aesEncrypt(message, ephemeralPubKey, aesKey);
+    }
+
+    private static KeyFactory getKeyFactory() throws NoSuchAlgorithmException {
+        KeyFactory keyFactory = KeyFactory.getInstance("EC", new BouncyCastleProvider());
+        return keyFactory;
     }
 
     @SneakyThrows
-    public String decrypt(byte[] cipherBytes, byte[] privateKeyBytes) {
+    public static byte[] decrypt(byte[] privateKeyBytes, byte[] cipherBytes) {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", new BouncyCastleProvider());
+        KeyFactory keyFactory = getKeyFactory();
         org.bouncycastle.jce.spec.ECNamedCurveSpec curvedParams = new ECNamedCurveSpec(CURVE_NAME, ecSpec.getCurve(), ecSpec.getG(), ecSpec.getN());
 
         //generate receiver private key
-        ECPrivateKeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(privateKeyBytes), curvedParams);
+        ECPrivateKeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateKeyBytes), curvedParams);
         org.bouncycastle.jce.interfaces.ECPrivateKey receiverPrivKey = (ECPrivateKey) keyFactory.generatePrivate(privateKeySpec);
 
         //get sender pub key
@@ -103,23 +108,21 @@ public class EciesImpl implements Ecies {
         byte[] aesKey = hkdf(uncompressed, multiply);
 
         // AES decryption
-        byte[] decrypted = aesDecrypt(cipherBytes, aesKey);
-        return new String(decrypted, StandardCharsets.UTF_8);
+        return aesDecrypt(cipherBytes, aesKey);
     }
 
-    private byte[] aesEncrypt(String plaintext, ECPublicKey ephemeralPubKey, byte[] aesKey) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidCipherTextException {
+    private static byte[] aesEncrypt(byte[] message, ECPublicKey ephemeralPubKey, byte[] aesKey) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidCipherTextException {
         AESGCMBlockCipher aesgcmBlockCipher = new AESGCMBlockCipher();
         byte[] nonce = new byte[AES_IV_LENGTH];
-        random.nextBytes(nonce);
+        SECURE_RANDOM.nextBytes(nonce);
 
         ParametersWithIV parametersWithIV = new ParametersWithIV(new KeyParameter(aesKey), nonce);
         aesgcmBlockCipher.init(true, parametersWithIV);
 
-        byte[] input = plaintext.getBytes(StandardCharsets.UTF_8);
-        int outputSize = aesgcmBlockCipher.getOutputSize(input.length);
+        int outputSize = aesgcmBlockCipher.getOutputSize(message.length);
 
         byte[] encrypted = new byte[outputSize];
-        int pos = aesgcmBlockCipher.processBytes(input, 0, input.length, encrypted, 0);
+        int pos = aesgcmBlockCipher.processBytes(message, 0, message.length, encrypted, 0);
         aesgcmBlockCipher.doFinal(encrypted, pos);
 
         byte[] tag = Arrays.copyOfRange(encrypted, encrypted.length - nonce.length, encrypted.length);
@@ -131,11 +134,11 @@ public class EciesImpl implements Ecies {
 
     private KeyPair generateEphemeralKey(ECNamedCurveParameterSpec ecSpec) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         KeyPairGenerator g = KeyPairGenerator.getInstance("EC", new BouncyCastleProvider());
-        g.initialize(ecSpec, random);
+        g.initialize(ecSpec, SECURE_RANDOM);
         return g.generateKeyPair();
     }
 
-    private byte[] aesDecrypt(byte[] inputBytes, byte[] aesKey) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidCipherTextException {
+    private static byte[] aesDecrypt(byte[] inputBytes, byte[] aesKey) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidCipherTextException {
         byte[] encrypted = Arrays.copyOfRange(inputBytes, UNCOMPRESSED_PUBLIC_KEY_SIZE, inputBytes.length);
         byte[] nonce = Arrays.copyOf(encrypted, AES_IV_LENGTH);
         byte[] tag = Arrays.copyOfRange(encrypted, AES_IV_LENGTH, AES_IV_PLUS_TAG_LENGTH);
@@ -153,7 +156,7 @@ public class EciesImpl implements Ecies {
         return decrypted;
     }
 
-    private byte[] hkdf(byte[] uncompressed, byte[] multiply) {
+    private static byte[] hkdf(byte[] uncompressed, byte[] multiply) {
         byte[] master = org.bouncycastle.util.Arrays.concatenate(uncompressed, multiply);
         HKDFBytesGenerator hkdfBytesGenerator = new HKDFBytesGenerator(new SHA256Digest());
         hkdfBytesGenerator.init(new HKDFParameters(master, null, null));
@@ -162,7 +165,7 @@ public class EciesImpl implements Ecies {
         return aesKey;
     }
 
-    private ECPublicKey getEcPublicKey(ECNamedCurveSpec curvedParams, byte[] senderPubKeyByte, KeyFactory keyFactory) throws InvalidKeySpecException {
+    private static ECPublicKey getEcPublicKey(ECNamedCurveSpec curvedParams, byte[] senderPubKeyByte, KeyFactory keyFactory) throws InvalidKeySpecException {
         java.security.spec.ECPoint point = org.bouncycastle.jce.ECPointUtil.decodePoint(curvedParams.getCurve(), senderPubKeyByte);
         ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, curvedParams);
         return (ECPublicKey) keyFactory.generatePublic(pubKeySpec);

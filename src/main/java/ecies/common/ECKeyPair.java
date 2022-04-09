@@ -1,4 +1,4 @@
-package ru.sovcombank.ecies;
+package ecies.common;
 
 import org.bouncycastle.jce.interfaces.ECPrivateKey;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
