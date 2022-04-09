@@ -16,6 +16,8 @@ jobs:
           java-version: 11
           distribution: 'adopt'
           cache: gradle
+      - name: permit Gradle
+        run: chmod +x gradlew
       - uses: gradle/gradle-build-action@v2
         with:
           arguments: build
