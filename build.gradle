@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group 'ecies'
+group 'io.github.ecies'
 version '0.0.1'
 
 repositories {
