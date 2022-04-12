@@ -1,4 +1,4 @@
-name: uild
+name: Build
 on:
   push:
     branches: [ master ]
@@ -19,6 +19,8 @@ jobs:
           distribution: 'adopt'
           java-version: 11
           cache: 'gradle'
+      - name: Make Gradle executable
+        run: chmod +x gradlew
       - name: Build
         uses: gradle/gradle-build-action@v2
         with:
