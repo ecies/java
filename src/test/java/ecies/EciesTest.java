@@ -26,8 +26,16 @@ class EciesTest {
     @Test
     void encryptDecryptHexTest() {
         ECKeyPair ecKeyPair = Ecies.generateEcKeyPair();
-        String encrypted = Ecies.encrypt(Hex.toHexString(ecKeyPair.getPublic().getQ().getEncoded(true)), MESSAGE);
-        String decrypted = Ecies.decrypt(Hex.toHexString(ecKeyPair.getPrivate().getD().toByteArray()), encrypted);
+        String encrypted = Ecies.encrypt(ecKeyPair.getPublicHex(true), MESSAGE);
+        String decrypted = Ecies.decrypt(ecKeyPair.getPrivateHex(), encrypted);
+        assertEquals(MESSAGE, decrypted);
+    }
+
+    @Test
+    void encryptDecryptBinaryTest() {
+        ECKeyPair ecKeyPair = Ecies.generateEcKeyPair();
+        byte[] encrypted = Ecies.encrypt(ecKeyPair.getPublicBinary(true), MESSAGE.getBytes(StandardCharsets.UTF_8));
+        String decrypted = new String(Ecies.decrypt(ecKeyPair.getPrivateBinary(), encrypted));
         assertEquals(MESSAGE, decrypted);
     }
 

@@ -38,6 +38,11 @@ public class Ecies {
     private static final int SECRET_KEY_LENGTH = 32;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /**
+     * Generates new key pair consists of {@link ECPublicKey} and {@link ECPrivateKey}
+     *
+     * @return new EC key pair
+     */
     @SneakyThrows
     public static ECKeyPair generateEcKeyPair() {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
@@ -47,6 +52,13 @@ public class Ecies {
         return new ECKeyPair((ECPublicKey) keyPair.getPublic(), (ECPrivateKey) keyPair.getPrivate());
     }
 
+    /**
+     * Encrypts given message with given public key in hex
+     *
+     * @param publicKeyHex EC public key in hex
+     * @param message message to encrypt
+     * @return encrypted message
+     */
     @SneakyThrows
     public static String encrypt(String publicKeyHex, String message) {
         byte[] publicKey = Hex.decode(publicKeyHex);
@@ -54,6 +66,13 @@ public class Ecies {
         return Hex.toHexString(encrypt);
     }
 
+    /**
+     * Decrypts given ciphertext with given private key
+     *
+     * @param privateKeyHex EC private key in hex
+     * @param ciphertext ciphered text in hex
+     * @return decrypted message
+     */
     @SneakyThrows
     public static String decrypt(String privateKeyHex, String ciphertext) {
         byte[] privateKey = Hex.decode(privateKeyHex);
@@ -61,6 +80,13 @@ public class Ecies {
         return new String(decrypt(privateKey, cipherBytes), StandardCharsets.UTF_8);
     }
 
+    /**
+     * Encrypts given message with given public key
+     *
+     * @param publicKeyBytes EC public key binary
+     * @param message message to encrypt binary
+     * @return encrypted message binary
+     */
     @SneakyThrows
     public static byte[] encrypt(byte[] publicKeyBytes, byte[] message) {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
@@ -83,11 +109,13 @@ public class Ecies {
         return aesEncrypt(message, ephemeralPubKey, aesKey);
     }
 
-    private static KeyFactory getKeyFactory() throws NoSuchAlgorithmException {
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", new BouncyCastleProvider());
-        return keyFactory;
-    }
-
+    /**
+     * Decrypts given ciphertext with given private key
+     *
+     * @param privateKeyBytes EC private key binary
+     * @param cipherBytes cipher text binary
+     * @return decrypted message binary
+     */
     @SneakyThrows
     public static byte[] decrypt(byte[] privateKeyBytes, byte[] cipherBytes) {
         ECNamedCurveParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(CURVE_NAME);
@@ -109,6 +137,10 @@ public class Ecies {
 
         // AES decryption
         return aesDecrypt(cipherBytes, aesKey);
+    }
+
+    private static KeyFactory getKeyFactory() throws NoSuchAlgorithmException {
+        return KeyFactory.getInstance("EC", new BouncyCastleProvider());
     }
 
     private static byte[] aesEncrypt(byte[] message, ECPublicKey ephemeralPubKey, byte[] aesKey) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidCipherTextException {
