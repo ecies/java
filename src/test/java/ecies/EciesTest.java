@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class EciesTest {
 
-    private static final String PYTHON_BACKEND_URI = "https://eciespy.herokuapp.com/";
+    private static final String PYTHON_BACKEND_URI = "https://ecies.deta.dev/";
     private static final String MESSAGE = "Helloworld_Helloworld_Helloworld_Helloworld_Helloworld";
     private static final String PRVHEX = "95d3c5e483e9b1d4f5fc8e79b2deaf51362980de62dbb082a9a4257eef653d7d";
     private static final String CIPHERED = "0453a537e11be4afada87c04a1651355a357fcd5ed00b0330009bcc5ebfe3194580d07d0a7054840949392f26cc2938c46dd5889bb6aee8840c560f19453ea8b39a37c3ad50bb49a55fe3b48da351ecf1c22a64a4dd891d1738f7527e341efea5a863f7b62b66b0e4bc51a141e42f4143feff81af26ee20bf0cfae556f8073d9023b94cea0fc53c93c0fc9d438c149eae1cd62306afef2";
